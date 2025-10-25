@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.log
+blogs_deploy_key
+blogs_deploy_key.pub

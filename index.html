@@ -1,0 +1,11 @@
+const indexHtml = applyLayout({
+  layout,
+  header,
+  footer,
+  title: "Home",
+  content: `<h1>All Posts</h1><div class="posts-grid">${homeCardsHtml}</div>`,
+  prefix: "", // homepage is at the root
+});
+
+await outputFile(`${OUT_DIR}/index.html`, injectVersion(indexHtml));
+console.log("🏠 Homepage generated → dist/index.html");

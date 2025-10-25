@@ -1,0 +1,21 @@
+await ensureDir(`${OUT_DIR}/about`);
+await outputFile(
+  `${OUT_DIR}/about/index.html`,
+  injectVersion(
+    applyLayout({
+      layout,
+      header,
+      footer,
+      title: "About",
+      content: `
+        <h1>About This Blog</h1>
+        <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability. 
+        Every post is written with a focus on learning, innovation, and real-world application.</p>
+        <p>This static site is generated with Node.js and Markdown, 
+        emphasizing simplicity, performance, and accessibility.</p>
+      `,
+      prefix: "../",
+    })
+  )
+);
+console.log("👤 About page generated → dist/about/index.html");

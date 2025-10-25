@@ -1,0 +1,126 @@
+name: Build & Deploy (Pages + Main)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: "Deploy to GitHub Pages (this repo)"
+        type: boolean
+        default: true
+      deploy_main:
+        description: "Deploy to main website repo (justine6/jutellane-blogs)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # Build twice with a matrix so each target gets the correct SITE_URL
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [pages, main]
+    env:
+      VERSION: ${{ github.sha }}
+      # Site URLs per target
+      PAGES_URL: ${{ vars.PAGES_SITE_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+      MAIN_URL:  ${{ vars.MAIN_SITE_URL  || 'https://justine6.github.io/jutellane-blogs' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Set SITE_URL for this target
+        id: url
+        run: |
+          if [ "${{ matrix.target }}" = "pages" ]; then
+            echo "SITE_URL=${{ env.PAGES_URL }}" >> $GITHUB_ENV
+          else
+            echo "SITE_URL=${{ env.MAIN_URL }}" >> $GITHUB_ENV
+          fi
+          echo "Using SITE_URL=$SITE_URL"
+
+      - name: Build (${{ matrix.target }})
+        run: npm run build
+        env:
+          SITE_URL: ${{ env.SITE_URL }}
+          VERSION:  ${{ env.VERSION }}
+
+      - name: Upload artifact (${{ matrix.target }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ matrix.target }}
+          path: dist
+
+  # Deploy to GitHub Pages (this repo)
+  deploy_pages:
+    needs: build
+    if: |
+      (github.event_name == 'push' && true) ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_pages == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: site-pages
+          path: site-pages
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site-pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Deploy to your main website repo (external) — using SSH deploy key or PAT
+  deploy_main:
+    needs: build
+    if: |
+      (github.event_name == 'push' && true) ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_main == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download main artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: site-main
+          path: site-main
+
+      - name: Deploy to justine6/jutellane-blogs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # Use ONE of the two auth methods below:
+
+          # Option A (recommended): SSH deploy key
+          deploy_key: ${{ secrets.BLOGS_DEPLOY_KEY }}
+
+          # Option B: Personal Access Token with repo scope
+          # personal_token: ${{ secrets.BLOGS_PAT }}
+
+          external_repository: justine6/jutellane-blogs
+          publish_dir: site-main
+          publish_branch: main
+          allow_empty_commit: false
+          user_name: github-actions
+          user_email: actions@github.com
+          commit_message: "Deploy from md-to-html-static @ ${{ github.sha }}"
