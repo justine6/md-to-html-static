@@ -1,0 +1,83 @@
+param(
+  [Parameter(Mandatory = $true)]
+  [string] $Title,
+
+  [string]   $Slug,
+  [switch]   $Draft,
+  [string[]] $Tags,
+  [string]   $Author = "Justine Longla",
+  [datetime] $Date   = (Get-Date),
+  [switch]   $Open
+)
+
+$ErrorActionPreference = 'Stop'
+
+function New-Slug([string] $s) {
+  # lowercase -> keep a-z/0-9 -> collapse to single hyphens -> trim hyphens
+  return ($s.ToLowerInvariant() -replace '[^a-z0-9]+','-' -replace '(^-+|-+$)','')
+}
+
+# ----- derive/normalize fields -----
+if ([string]::IsNullOrWhiteSpace($Slug)) {
+  $Slug = New-Slug $Title
+}
+
+# compute repo + content folder
+$RepoRoot   = (Resolve-Path "$PSScriptRoot\..").Path
+$ContentDir = Join-Path $RepoRoot 'content\posts'
+New-Item -ItemType Directory -Force -Path $ContentDir | Out-Null
+
+# ensure unique filename
+$BaseSlug = $Slug
+$FilePath = Join-Path $ContentDir "$Slug.md"
+$i = 2
+while (Test-Path $FilePath) {
+  $Slug     = "$BaseSlug-$i"
+  $FilePath = Join-Path $ContentDir "$Slug.md"
+  $i++
+}
+
+# YAML helpers
+$Iso       = $Date.ToString('o')
+$DraftYaml = $Draft.IsPresent.ToString().ToLower()
+
+# tags as inline YAML array: ['a','b'] (or empty [])
+$TagsLine =
+  if ($Tags -and $Tags.Count) { "['{0}']" -f ($Tags -join "','") }
+  else { "[]" }
+
+# ----- write file -----
+$frontMatter = @"
+---
+title: "$Title"
+date: $Iso
+author: "$Author"
+tags: $TagsLine
+draft: $DraftYaml
+slug: "$Slug"
+---
+"@
+
+$body = @"
+# $Title
+
+Write your post here. You can use regular **Markdown**.
+
+- Replace this intro
+- Add code blocks
+- Add images (put assets in `public\`)
+"@
+
+Set-Content -Path $FilePath -Value ($frontMatter + "`r`n" + $body) -Encoding UTF8 -NoNewline
+
+Write-Host ""
+Write-Host "✅ New post created successfully:" -ForegroundColor Green
+Write-Host "  $FilePath"
+Write-Host ""
+
+if ($Open) {
+  try   { code $FilePath }
+  catch { Write-Host "Tip: install VS Code CLI 'code' to auto-open files." -ForegroundColor Yellow }
+}
+
+exit 0

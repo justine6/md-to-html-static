@@ -2,13 +2,21 @@
   "name": "md-to-html-static",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "node build.mjs",
-    "clean": "rimraf dist",
-    "serve": "http-server dist -p 3000 -c-1",
-    "watch:build": "chokidar \"content/**/*.md\" \"templates/**/*.html\" \"public/**/*\" -c \"npm run build\"",
-    "dev": "npm-run-all --parallel watch:build serve"
-  },
+"scripts": {
+  "clean": "rimraf dist",
+
+  "check": "pwsh ./tools/check-injectVersion.ps1",
+  "build": "pwsh ./tools/check-injectVersion.ps1 && node build.mjs",
+
+  "serve": "http-server dist -p 3000 -a 127.0.0.1 -c-1 -s",
+  "serve:dist": "http-server dist -p 3000 -a 127.0.0.1 -c-1 -s",
+
+  "watch:build": "chokidar \"content/**/*.md\" \"templates/**/*.html\" \"public/**/*\" -c \"npm run build\"",
+  "dev": "npm-run-all --parallel watch:build serve",
+
+  "dev:preview": "pwsh -NoLogo -NoProfile -File ./tools/dev-preview.ps1 -Force",
+  "preview": "pwsh -NoLogo -NoProfile -File ./tools/build-serve.ps1 -SkipBuild -Force"
+},
   "devDependencies": {
     "chokidar-cli": "^3.0.0",
     "fs-extra": "^11.3.2",
