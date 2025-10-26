@@ -1,6 +1,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <!-- 🛡️ Basic Security & CSP -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data:;
+        font-src 'self' data:;
+        object-src 'none';
+        frame-ancestors 'none';
+        base-uri 'self';
+        form-action 'self';
+      ">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
   <title>Jutellane Blog — Cloud, DevOps, AI & Sustainability</title>
   <meta name="description" content="Jutellane Blog — Exploring Cloud, DevOps, AI, and Sustainability." />
   <meta property="og:title" content="Jutellane Blog — Cloud, DevOps, AI & Sustainability" />

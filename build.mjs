@@ -1,5 +1,6 @@
 import pkg from "fs-extra";
 const { readFile, outputFile, copy, ensureDir } = pkg;
+
 import { glob } from "glob";
 import matter from "gray-matter";
 import { unified } from "unified";
@@ -9,7 +10,8 @@ import remarkRehype from "remark-rehype";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeStringify from "rehype-stringify";
-import { escape as xmlEscape } from "html-escaper"; // used for RSS
+import rehypeSanitize from "rehype-sanitize";       // <-- proper import
+import { escape as xmlEscape } from "html-escaper";  // for RSS
 
 const SRC_DIR = "content/posts";
 const OUT_DIR = "dist";
@@ -27,10 +29,11 @@ const compileMd = async (md) =>
     await unified()
       .use(remarkParse)
       .use(remarkGfm)
-      .use(remarkRehype, { allowDangerousHtml: true })
+      .use(remarkRehype, { allowDangerousHtml: false })
+      .use(rehypeSanitize)
       .use(rehypeSlug)
       .use(rehypeAutolinkHeadings, { behavior: "wrap" })
-      .use(rehypeStringify, { allowDangerousHtml: true })
+      .use(rehypeStringify)
       .process(md)
   );
 
@@ -39,7 +42,6 @@ const htmlEscape = (s = "") =>
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-
 
 // reading time (~200 wpm)
 const estimateReadingTime = (md) => {
@@ -62,11 +64,6 @@ const makeExcerpt = (md, max = 160) => {
     .trim();
   return text.length <= max ? text : text.slice(0, max).replace(/\s+\S*$/, "") + "…";
 };
-
-// Export or inject version into HTML templates
-function injectVersion(html) {
-  return html.replaceAll("{{VERSION}}", VERSION);
-}
 
 // safe date formatting
 const formatDate = (d) => {
@@ -93,7 +90,6 @@ const applyLayout = ({ layout, header, footer, title, content, prefix = "" }) =>
     .replace("{{CONTENT}}", content);
 
 /* ---------- build pipeline ---------- */
-
 (async () => {
   await ensureDir(OUT_DIR);
   await copy(PUBLIC_DIR, `${OUT_DIR}/`);
@@ -105,12 +101,9 @@ const applyLayout = ({ layout, header, footer, title, content, prefix = "" }) =>
   ]);
 
   const files = await glob(`${SRC_DIR}/**/*.md`);
-  // Cache-busting version for favicon URLs, etc.
-  const VERSION = Date.now().toString();
-  const injectVersion = (html) => html.replaceAll("{{VERSION}}", VERSION);
   const posts = [];
 
-  // build each post
+  // ---- Build each post ----
   for (const file of files) {
     const raw = await readFile(file, "utf8");
     const { data, content } = matter(raw);
@@ -133,98 +126,77 @@ const applyLayout = ({ layout, header, footer, title, content, prefix = "" }) =>
 
     const metaHtml = `
       <p class="post-meta">
-        ${author ? `By ${htmlEscape(author)} · ` : ""}
-        ${minutes} min read · <time datetime="${htmlEscape(dateISO)}">${htmlEscape(dateLabel)}</time>
-      </p>
-    `;
+        ${author ? `By ${htmlEscape(author)} · ` : ""}${minutes} min read ·
+        <time datetime="${htmlEscape(dateISO)}">${htmlEscape(dateLabel)}</time>
+      </p>`;
 
-    const htmlWithMeta = `${metaHtml}\n${html}`;
+    await ensureDir(`${OUT_DIR}/${slug}`);
+    await outputFile(
+      outPath,
+      injectVersion(
+        applyLayout({
+          layout,
+          header,
+          footer,
+          title: data.title || "Untitled",
+          content: `${metaHtml}\n${html}`,
+          prefix,
+        })
+      )
+    );
+    console.log(`✔ built: ${outPath}`);
 
-/* ----- Posts index (/posts/) ----- */
-await ensureDir(`${OUT_DIR}/posts`);
-await outputFile(
-  `${OUT_DIR}/posts/index.html`,
-  injectVersion(
-    applyLayout({
-      layout,
-      header,
-      footer,
-      title: "All Blog Posts",
-      content: `<h1>All Blog Posts</h1><div class="posts-grid">${cardsHtml}</div>`,
-      prefix: "../",
+    posts.push({
+      title: data.title || "Untitled",
+      slug,
+      date: data.date || "Unknown date",
+      author,
+      minutes,
+      excerpt: makeExcerpt(content),
+    });
+  }
+
+  /* ----- Posts index (/posts/) ----- */
+  posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const cardsHtml = posts
+    .map((p) => {
+      const within = p.slug.replace(/^posts\//, ""); // show clean link text
+      return `
+        <article class="post-card">
+          <div class="meta">${htmlEscape(p.author)} · ${p.minutes} min read · ${htmlEscape(p.date)}</div>
+          <h2><a href="./${within}/">${htmlEscape(p.title)}</a></h2>
+          <p class="excerpt">${htmlEscape(p.excerpt)}</p>
+        </article>`;
     })
-  )
-);
-console.log("📝 Posts index generated → dist/posts/index.html");
+    .join("\n");
 
+  await ensureDir(`${OUT_DIR}/posts`);
+  await outputFile(
+    `${OUT_DIR}/posts/index.html`,
+    injectVersion(
+      applyLayout({
+        layout,
+        header,
+        footer,
+        title: "All Blog Posts",
+        content: `<h1>All Blog Posts</h1><div class="posts-grid">${cardsHtml}</div>`,
+        prefix: "../",
+      })
+    )
+  );
+  console.log("📝 Posts index generated → dist/posts/index.html");
 
-/* ----- Homepage (/) ----- */
-const homeCardsHtml = posts
-  .slice()
-  .sort((a, b) => new Date(b.date) - new Date(a.date))
-  .map((p) => {
-    // on the homepage we can link directly to `${p.slug}/`
-    return `
+  /* ----- Homepage (/) ----- */
+  const homeCardsHtml = posts
+    .map(
+      (p) => `
       <article class="post-card">
         <div class="meta">${htmlEscape(p.author)} · ${p.minutes} min read · ${htmlEscape(p.date)}</div>
         <h2><a href="${p.slug}/">${htmlEscape(p.title)}</a></h2>
         <p class="excerpt">${htmlEscape(p.excerpt)}</p>
-      </article>
-    `;
-  })
-  .join("\n");
-
-const indexHtml = applyLayout({
-  layout,
-  header,
-  footer,
-  title: "Home",
-  content: `<h1>All Posts</h1><div class="posts-grid">${homeCardsHtml}</div>`,
-  prefix: "", // homepage is at the root
-});
-
-await outputFile(`${OUT_DIR}/index.html`, injectVersion(indexHtml));
-console.log("🏠 Homepage generated → dist/index.html");
-
-
-/* ----- About (/about/) ----- */
-await ensureDir(`${OUT_DIR}/about`);
-await outputFile(
-  `${OUT_DIR}/about/index.html`,
-  injectVersion(
-    applyLayout({
-      layout,
-      header,
-      footer,
-      title: "About",
-      content: `
-        <h1>About This Blog</h1>
-        <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability. 
-        Every post is written with a focus on learning, innovation, and real-world application.</p>
-        <p>This static site is generated with Node.js and Markdown, 
-        emphasizing simplicity, performance, and accessibility.</p>
-      `,
-      prefix: "../",
-    })
-  )
-);
-console.log("👤 About page generated → dist/about/index.html");
-
-
-  /* ----- Homepage (/) ----- */
-  const homeCardsHtml = posts
-    .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .map((p) => {
-      // on the homepage we can link directly to `${p.slug}/`
-      return `
-        <article class="post-card">
-          <div class="meta">${htmlEscape(p.author)} · ${p.minutes} min read · ${htmlEscape(p.date)}</div>
-          <h2><a href="${p.slug}/">${htmlEscape(p.title)}</a></h2>
-          <p class="excerpt">${htmlEscape(p.excerpt)}</p>
-        </article>
-      `;
-    })
+      </article>`
+    )
     .join("\n");
 
   const indexHtml = applyLayout({
@@ -233,47 +205,45 @@ console.log("👤 About page generated → dist/about/index.html");
     footer,
     title: "Home",
     content: `<h1>All Posts</h1><div class="posts-grid">${homeCardsHtml}</div>`,
-    prefix: "", // homepage is at the root
+    prefix: "",
   });
 
-  await outputFile(`${OUT_DIR}/index.html`, indexHtml);
+  await outputFile(`${OUT_DIR}/index.html`, injectVersion(indexHtml));
   console.log("🏠 Homepage generated → dist/index.html");
-
 
   /* ----- About (/about/) ----- */
   await ensureDir(`${OUT_DIR}/about`);
   await outputFile(
     `${OUT_DIR}/about/index.html`,
-    applyLayout({
-      layout,
-      header,
-      footer,
-      title: "About",
-      content: `
-        <h1>About This Blog</h1>
-        <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability. 
-        Every post is written with a focus on learning, innovation, and real-world application.</p>
-        <p>This static site is generated with Node.js and Markdown, 
-        emphasizing simplicity, performance, and accessibility.</p>
-      `,
-      prefix: "../",
-    })
+    injectVersion(
+      applyLayout({
+        layout,
+        header,
+        footer,
+        title: "About",
+        content: `
+          <h1>About This Blog</h1>
+          <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability.
+          Every post is written with a focus on learning, innovation, and real-world application.</p>
+          <p>This static site is generated with Node.js and Markdown, emphasizing simplicity, performance, and accessibility.</p>`,
+        prefix: "../",
+      })
+    )
   );
   console.log("👤 About page generated → dist/about/index.html");
 
   /* ----- RSS (/feed.xml) ----- */
-  // Publish URL: set via env (Actions) or fallback to local preview
   const BASE_URL = process.env.SITE_URL || "http://127.0.0.1:3000";
 
   const rssItems = posts
     .map(
       (p) => `
-    <item>
-      <title>${xmlEscape(p.title)}</title>
-      <link>${BASE_URL}/${p.slug}/</link>
-      <description>${xmlEscape(p.excerpt)}</description>
-      <pubDate>${new Date(p.date).toUTCString()}</pubDate>
-    </item>`
+      <item>
+        <title>${xmlEscape(p.title)}</title>
+        <link>${BASE_URL}/${p.slug}/</link>
+        <description>${xmlEscape(p.excerpt)}</description>
+        <pubDate>${new Date(p.date).toUTCString()}</pubDate>
+      </item>`
     )
     .join("\n");
 

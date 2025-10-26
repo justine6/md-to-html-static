@@ -1,22 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>About — Jutellane Blog</title>
-  <link rel="icon" href="../favicon.ico?v={{VERSION}}" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <!-- 🛡️ Basic Security & CSP -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data:;
+        font-src 'self' data:;
+        object-src 'none';
+        frame-ancestors 'none';
+        base-uri 'self';
+        form-action 'self';
+      ">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
+  <title>Jutellane Blog — Cloud, DevOps, AI & Sustainability</title>
+  <meta name="description" content="Jutellane Blog — Exploring Cloud, DevOps, AI, and Sustainability." />
+  <meta property="og:title" content="Jutellane Blog — Cloud, DevOps, AI & Sustainability" />
+  <meta property="og:description" content="Articles on cloud architecture, DevOps pipelines, AI infrastructure, and sustainable IT." />
+  <meta property="og:image" content="../favicon.ico" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://justine6.github.io/md-to-html-static/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Jutellane Blog — Cloud, DevOps, AI & Sustainability" />
+  <meta name="twitter:description" content="Exploring Cloud, DevOps, AI, and Sustainability." />
+  <meta name="twitter:image" content="../favicon.ico" />
   <link rel="stylesheet" href="../styles.css" />
+  <!-- 🌐 Icons & PWA metadata -->
+  <link rel="icon" href="../favicon.ico?v=1761438596987" sizes="any" type="image/x-icon" />
+  <link rel="icon" href="../favicon-32x32.png?v=1761438596987" sizes="32x32" type="image/png" />
+  <link rel="icon" href="../favicon-16x16.png?v=1761438596987" sizes="16x16" type="image/png" />
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png?v=1761438596987" />
+  <link rel="manifest" href="../site.webmanifest?v=1761438596987" />
+  <meta name="theme-color" content="#0f172a" />
 </head>
-<body>
-  <header>
-    <h1>About This Blog</h1>
-  </header>
-  <main>
-    <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability.</p>
-    <p>Every post focuses on learning, innovation, and real-world application.</p>
-  </main>
-  <footer>
-    <p>&copy; 2025 Jutellane Blog. All rights reserved.</p>
-  </footer>
-</body>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <header class="site-header">
+  <div class="container">
+    <a href="../" class="brand">Jutellane Blog</a>
+    <nav class="nav">
+      <a href="../">Home</a>
+      <a href="../posts/">Posts</a>
+      <a href="../about/">About</a>
+    </nav>
+  </div>
+</header>
+
+    <main id="content" class="container prose">
+      
+          <h1>About This Blog</h1>
+          <p>Welcome to <strong>Jutellane Blog</strong> — a space where I explore Cloud, DevOps, AI, and Sustainability.
+          Every post is written with a focus on learning, innovation, and real-world application.</p>
+          <p>This static site is generated with Node.js and Markdown, emphasizing simplicity, performance, and accessibility.</p>
+    </main>
+    <footer class="site-footer">
+  <div class="container">
+    <p>&copy; <span id="y"></span> Your Site. All rights reserved.</p>
+  </div>
+  <script>document.getElementById("y").textContent = new Date().getFullYear()</script>
+</footer>
+
+  </body>
 </html>

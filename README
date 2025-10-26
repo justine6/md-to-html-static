@@ -1,0 +1,57 @@
+# 🚀 Dual Deployment Workflow — Jutellane Blog Generator
+<!-- Workflow badges -->
+[![Build & Deploy](https://github.com/justine6/md-to-html-static/actions/workflows/build-multi-deploy.yml/badge.svg)](https://github.com/justine6/md-to-html-static/actions/workflows/build-multi-deploy.yml)
+[![GitHub Pages](https://img.shields.io/badge/Pages-live-brightgreen)](https://justine6.github.io/md-to-html-static/)
+[![Main Site](https://img.shields.io/badge/jutellane--blogs-live-blue)](https://justine6.github.io/jutellane-blogs/)
+
+# md-to-html-static · Post Generator
+
+[![Build & Deploy](https://github.com/justine6/md-to-html-static/actions/workflows/build-multi-deploy.yml/badge.svg)](https://github.com/justine6/md-to-html-static/actions/workflows/build-multi-deploy.yml)
+
+Generates the static blog HTML (Markdown → HTML), then deploys **to two places** from the same commit:
+
+- **Generator repo Pages:** https://justine6.github.io/md-to-html-static/
+- **Main site repo:** https://justine6.github.io/jutellane-blogs/
+
+![Dual deploy diagram](assets/diagram/dual-deploy-architecture.png)
+
+### How it works
+- GitHub Actions runs a **matrix build** with two `SITE_URL`s:
+  - `pages` → this repo’s Pages
+  - `main`  → `justine6/jutellane-blogs` (external repo)
+- We publish two artifacts and deploy each to its destination.
+- External deploy uses an **SSH Deploy Key** stored as the secret `BLOGS_DEPLOY_KEY` **in this repo**.
+
+### One-time setup
+1. In **md-to-html-static**, add secret `BLOGS_DEPLOY_KEY` (private key).
+2. In **jutellane-blogs** repo, add the **public key** as a *Deploy key* with **Write** access.
+3. (Optional) set repo **Variables** for URLs:
+   - `PAGES_SITE_URL` → `https://justine6.github.io/md-to-html-static`
+   - `MAIN_SITE_URL`  → `https://justine6.github.io/jutellane-blogs`
+4. Push to `main` and watch the workflow.
+
+### Useful links
+- Generator site (preview): https://justine6.github.io/md-to-html-static/
+- Main site (public): https://justine6.github.io/jutellane-blogs/
+
+This repository powers an automated **Markdown → HTML static blog generator** with **dual deployment** capability.  
+Each commit can publish the same content to **GitHub Pages** (for previews) and to the **main website repository**  
+[`justine6/jutellane-blogs`](https://github.com/justine6/jutellane-blogs) for production hosting.
+
+---
+
+## 🧩 How It Works
+
+The workflow (`.github/workflows/build-deploy.yml`) builds once for both environments using a **matrix job**, then deploys each target separately.
+
+### Workflow Overview
+
+```mermaid
+graph TD
+A[Push or Manual Dispatch] --> B[Matrix Build (pages, main)]
+B --> C1[Build Artifact: site-pages]
+B --> C2[Build Artifact: site-main]
+C1 --> D1[Deploy via actions/deploy-pages@v4]
+C2 --> D2[Deploy via peaceiris/actions-gh-pages@v3]
+D1 --> E1[GitHub Pages (this repo)]
+D2 --> E2[jutellane-blogs (external repo)]
