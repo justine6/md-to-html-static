@@ -1,0 +1,49 @@
+name: Publish to Jutellane Blogs
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Generator Repo
+        uses: actions/checkout@v4
+
+      - name: Build HTML from Markdown
+        shell: pwsh
+        run: |
+          mkdir dist -Force
+          pwsh ./scripts/build.ps1
+          Write-Host "✅ Markdown converted to HTML"
+
+      - name: Checkout Target Repo (jutellane-blogs)
+        uses: actions/checkout@v4
+        with:
+          repository: justine6/jutellane-blogs
+          token: ${{ secrets.BLOGS_PUSH_TOKEN }}
+          path: blogs
+
+      - name: Copy Built Files
+        run: |
+          mkdir -p blogs/docs/jutellane-blogs/posts/
+          cp -r dist/* blogs/docs/jutellane-blogs/posts/
+          echo "✅ Copied generated HTML into jutellane-blogs/docs/jutellane-blogs/posts"
+
+      - name: Commit and Push Changes
+        run: |
+          cd blogs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/jutellane-blogs/posts
+          if git diff --cached --quiet; then
+            echo "✅ No new posts to commit."
+          else
+            git commit -m "chore(generator): publish new HTML posts from md-to-html-static"
+            git push
+          fi
