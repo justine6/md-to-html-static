@@ -5,45 +5,83 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# We push to another repo, so we use a PAT secret.
 permissions:
   contents: read
+
+concurrency:
+  group: publish-to-jutellane-blogs
+  cancel-in-progress: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Generator Repo
+      - name: Checkout Generator Repo (this repo)
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # we'll push with the PAT, not GITHUB_TOKEN
+          fetch-depth: 0
 
       - name: Build HTML from Markdown
         shell: pwsh
         run: |
           mkdir dist -Force
           pwsh ./scripts/build.ps1
-          Write-Host "✅ Markdown converted to HTML"
+          Write-Host "✅ Markdown converted to HTML into ./dist"
 
       - name: Checkout Target Repo (jutellane-blogs)
         uses: actions/checkout@v4
         with:
           repository: justine6/jutellane-blogs
-          token: ${{ secrets.BLOGS_PUSH_TOKEN }}
-          path: blogs
+          token: ${{ secrets.BLOGS_PUSH_TOKEN }} # Personal Access Token with repo scope
+          path: site
+          fetch-depth: 0
 
-      - name: Copy Built Files
+      # Optional: ensure /public exists
+      - name: Ensure public directory
         run: |
-          mkdir -p blogs/docs/jutellane-blogs/posts/
-          cp -r dist/* blogs/docs/jutellane-blogs/posts/
-          echo "✅ Copied generated HTML into jutellane-blogs/docs/jutellane-blogs/posts"
+          mkdir -p site/public
 
-      - name: Commit and Push Changes
+      # Sync dist → site/public (delete removed files)
+      - name: Sync generated site into /public
         run: |
-          cd blogs
-          git config user.name "github-actions[bot]"
+          rsync -av --delete --exclude='.git' ./dist/ ./site/public/
+          echo "✅ Synced ./dist → site/public"
+
+      # (Optional safety) Keep your existing redirect file intact if you already committed it.
+      # If you *haven't* committed the redirect yet, uncomment this block to ensure it exists.
+      # - name: Ensure root redirect to /posts/
+      #   run: |
+      #     cat > site/public/index.html <<'HTML'
+      #     <!doctype html>
+      #     <html lang="en">
+      #       <head>
+      #         <meta charset="utf-8">
+      #         <title>Redirecting…</title>
+      #         <meta http-equiv="refresh" content="0; url=/posts/">
+      #         <link rel="canonical" href="/posts/">
+      #       </head>
+      #       <body>
+      #         <p>Redirecting to <a href="/posts/">/posts/</a>…</p>
+      #         <script>location.replace("/posts/");</script>
+      #       </body>
+      #     </html>
+      #     HTML
+
+      - name: Commit and Push Changes (to jutellane-blogs)
+        working-directory: site
+        env:
+          PUSH_URL: https://${{ secrets.BLOGS_PUSH_TOKEN }}@github.com/justine6/jutellane-blogs.git
+        run: |
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/jutellane-blogs/posts
+
+          git add public
           if git diff --cached --quiet; then
-            echo "✅ No new posts to commit."
+            echo "✅ No changes to publish."
           else
-            git commit -m "chore(generator): publish new HTML posts from md-to-html-static"
-            git push
+            git commit -m "chore: publish static site from generator (dist → public)"
+            git push "$PUSH_URL" HEAD:main
+            echo "🚀 Pushed updates to jutellane-blogs/public"
           fi
