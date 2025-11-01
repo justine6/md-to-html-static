@@ -1,0 +1,6 @@
+# Common excludes
+drafts/
+tools/
+scripts/
+*.ps1
+*.md
