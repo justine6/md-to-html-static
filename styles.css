@@ -1,0 +1,44 @@
+:root {
+  --fg: #0f172a;       /* slate-900 */
+  --muted: #334155;    /* slate-600 */
+  --link: #0ea5e9;     /* sky-500 */
+  --link-hover: #0284c7; /* sky-600 */
+  --accent: #2563eb;   /* blue-600 */
+  --bg: #ffffff;
+  --card: #f8fafc;     /* slate-50 */
+}
+
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; }
+body {
+  font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 2rem 1rem; }
+
+.header {
+  display:flex; align-items:center; gap:1rem;
+  padding: 1rem 0 0.5rem;
+}
+.header img {
+  width:56px; height:56px; display:block;
+}
+.brand {
+  font-size:1.75rem; font-weight:700; letter-spacing:.2px;
+}
+
+.nav { margin: .25rem 0 1.25rem; padding: .5rem .75rem; background: var(--card); border-radius: .75rem; }
+.nav a { margin-right:1rem; color: var(--link); text-decoration:none; font-weight:600; }
+.nav a:hover { color: var(--link-hover); text-decoration:underline; }
+
+h1 { font-size: clamp(1.9rem, 2.6vw, 2.5rem); margin: 1.25rem 0 .5rem; }
+h2 { margin-top: 2rem; font-size:1.35rem; }
+p { margin: .75rem 0; color: var(--muted); }
+ul { padding-left: 1.25rem; }
+code { padding:.1rem .3rem; background:#eef2ff; border-radius:.35rem; }
+pre { padding: .75rem; background:#0b1022; color:#e5e7eb; border-radius:.75rem; overflow:auto; }
+a { color: var(--link); }
+a:hover { color: var(--link-hover); }
+.footer { margin: 2rem 0 1.5rem; color: var(--muted); font-size:.95rem; }
